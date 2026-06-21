@@ -1,0 +1,5 @@
+venv311/
+data/
+*.pyc
+__pycache__/
+.vscode/

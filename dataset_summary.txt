@@ -1,0 +1,14 @@
+Dataset Summary Report
+======================
+
+Class: with_mask
+  Total images: 3725
+  Average width: 306.3
+  Average height: 314.4
+  Corrupt/unreadable files: 0
+
+Class: without_mask
+  Total images: 3828
+  Average width: 214.2
+  Average height: 224.7
+  Corrupt/unreadable files: 0
