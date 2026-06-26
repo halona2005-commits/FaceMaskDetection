@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Mask Detection Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #121212;
+            color: #f1f1f1;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1.8fr 1fr;
+            gap: 16px;
+            padding: 20px;
+        }
+        .panel {
+            background: #1f1f1f;
+            border-radius: 12px;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+            padding: 18px;
+        }
+        .panel h2 {
+            margin-top: 0;
+            font-size: 1.3rem;
+            color: #e4e4e4;
+        }
+        .video-card {
+            position: relative;
+        }
+        #videoFeed {
+            width: 100%;
+            border-radius: 10px;
+            border: 4px solid #333;
+            background: #000;
+            display: block;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .stat-item {
+            padding: 14px;
+            background: #222;
+            border-radius: 10px;
+            min-height: 80px;
+        }
+        .stat-item span {
+            display: block;
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+        .stat-label {
+            color: #a0a0a0;
+            margin-top: 6px;
+            font-size: 0.95rem;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+        .controls button {
+            border: none;
+            border-radius: 10px;
+            padding: 12px 18px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease;
+            color: #fff;
+            background: #3f8bff;
+            flex: 1 1 auto;
+        }
+        .controls button:hover {
+            transform: translateY(-1px);
+        }
+        .controls button.stop {
+            background: #ff5c5c;
+        }
+        .controls button.save {
+            background: #00c781;
+        }
+        .alert-log {
+            max-height: 360px;
+            overflow-y: auto;
+            border-radius: 10px;
+            background: #101010;
+            padding: 12px;
+            margin-top: 12px;
+            border: 1px solid #333;
+        }
+        .alert-log li {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #171717;
+            list-style: none;
+            font-size: 0.95rem;
+            line-height: 1.3;
+        }
+        .status-safe {
+            color: #7fe07f;
+        }
+        .status-danger {
+            color: #ff7f7f;
+        }
+        .full-width {
+            width: 100%;
+        }
+        .footer {
+            margin-top: 20px;
+            color: #8a8a8a;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel video-card">
+            <h2>Live Camera Panel</h2>
+            <img id="videoFeed" src="/video_feed" alt="Live camera stream">
+            <div class="controls">
+                <button id="startButton">Start Camera</button>
+                <button id="stopButton" class="stop">Stop Camera</button>
+                <button id="saveLogButton" class="save">Save Log</button>
+            </div>
+            <p id="cameraStatus" class="footer">Camera status: <span class="status-danger">Stopped</span></p>
+        </div>
+
+        <div class="panel">
+            <h2>Stats Panel</h2>
+            <div class="stats">
+                <div class="stat-item">
+                    <span id="totalDetections">0</span>
+                    <div class="stat-label">Total Detections</div>
+                </div>
+                <div class="stat-item">
+                    <span id="violations">0</span>
+                    <div class="stat-label">Violations</div>
+                </div>
+                <div class="stat-item">
+                    <span id="complianceRate">100%</span>
+                    <div class="stat-label">Compliance %</div>
+                </div>
+                <div class="stat-item">
+                    <span id="sessionDuration">0.0s</span>
+                    <div class="stat-label">Session Duration</div>
+                </div>
+            </div>
+            <h2 style="margin-top: 24px;">Alert Log Panel</h2>
+            <ul id="alertLog" class="alert-log"></ul>
+        </div>
+    </div>
+
+    <script>
+        async function fetchStats() {
+            try {
+                const response = await fetch('/stats');
+                if (!response.ok) {
+                    console.warn('Unable to fetch stats');
+                    return;
+                }
+                const data = await response.json();
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Stats fetch error:', error);
+            }
+        }
+
+        function updateDashboard(data) {
+            document.getElementById('totalDetections').innerText = data.total_detections;
+            document.getElementById('violations').innerText = data.violations;
+            document.getElementById('complianceRate').innerText = data.compliance_rate + '%';
+            document.getElementById('sessionDuration').innerText = data.session_duration + 's';
+
+            const isSafe = data.violations === 0;
+            const statusClass = isSafe ? 'status-safe' : 'status-danger';
+            const statusText = isSafe ? 'Safe' : 'Violations Detected';
+            document.getElementById('cameraStatus').innerHTML =
+                `Camera status: <span class="${statusClass}">${statusText}</span>`;
+
+            document.getElementById('complianceRate').style.color = isSafe ? '#7fe07f' : '#ff7f7f';
+            document.getElementById('violations').style.color = isSafe ? '#7fe07f' : '#ff7f7f';
+            document.getElementById('totalDetections').style.color = '#f1f1f1';
+            document.getElementById('sessionDuration').style.color = '#f1f1f1';
+
+            const alertLog = document.getElementById('alertLog');
+            alertLog.innerHTML = '';
+            if (data.recent_alerts.length === 0) {
+                const item = document.createElement('li');
+                item.innerText = 'No recent alerts';
+                item.style.color = '#a0a0a0';
+                alertLog.appendChild(item);
+            } else {
+                data.recent_alerts.forEach(entry => {
+                    const item = document.createElement('li');
+                    item.textContent = entry;
+                    alertLog.appendChild(item);
+                });
+            }
+        }
+
+        async function postAction(endpoint) {
+            try {
+                const response = await fetch(endpoint);
+                return response.json();
+            } catch (error) {
+                console.error(endpoint, error);
+                return null;
+            }
+        }
+
+        document.getElementById('startButton').addEventListener('click', async () => {
+            const result = await postAction('/start');
+            if (result && result.success) {
+                fetchStats();
+            } else {
+                alert(result?.message || 'Failed to start camera');
+            }
+        });
+
+        document.getElementById('stopButton').addEventListener('click', async () => {
+            const result = await postAction('/stop');
+            if (result && result.success) {
+                fetchStats();
+            } else {
+                alert(result?.message || 'Failed to stop camera');
+            }
+        });
+
+        document.getElementById('saveLogButton').addEventListener('click', async () => {
+            const result = await postAction('/save_log');
+            if (result && result.success) {
+                alert('Dashboard log saved successfully');
+            } else {
+                alert('Unable to save log');
+            }
+        });
+
+        setInterval(fetchStats, 1000);
+        fetchStats();
+    </script>
+</body>
+</html>
